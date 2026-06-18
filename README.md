@@ -1,10 +1,10 @@
-# 🚀 PERN Application Deployment on AWS EKS with Jenkins CI/CD, GitOps, Helm, Canary deployment, Monitoring
+# 🚀 PERN Application Deployment on AWS EKS with Jenkins CI/CD, GitOps, Helm, Canary deployment, Monitoring, Velero Backup
 
 ## 📌 Description
 
 This project demonstrates a complete end-to-end deployment of a **PERN (PostgreSQL, Express, React, Node.js) application** on **Amazon EKS (Elastic Kubernetes Service)** using modern cloud-native tools and practices.
 
-It covers infrastructure provisioning, containerization, Kubernetes deployment, progressive delivery strategies, CI/CD automation, and monitoring — all integrated into a scalable and production-ready architecture.
+It covers infrastructure provisioning, containerization, Kubernetes deployment, progressive delivery strategies, CI/CD automation, and monitoring , Cluster Backup using Velero  — all integrated into a scalable and production-ready architecture.
 
 ---
 
@@ -12,13 +12,15 @@ It covers infrastructure provisioning, containerization, Kubernetes deployment, 
 
 The project starts by provisioning AWS infrastructure using **Terraform**, including VPC, EKS cluster, and container registry (ECR).
 
-The application is containerized using Docker and deployed on Kubernetes using **Helm charts** for better configuration management and reusability.
+The application is containerized using **Docker** and deployed on Kubernetes using **Helm charts** for better configuration management and reusability.
 
 To ensure safe and reliable releases, **Canary Deployment strategy** is implemented using **Argo Rollouts**, allowing gradual traffic shifting and automatic rollback based on application health.
 
 A fully automated **CI/CD pipeline** is built using **Jenkins**, which handles building, testing, containerization, and deployment updates. The deployment process follows a **GitOps approach** using **Argo CD**, ensuring that the Kubernetes cluster state always matches the desired state stored in Git.
 
 For observability, the system integrates **Prometheus** and **Grafana** to monitor both infrastructure and application-level metrics, providing real-time insights into system performance and health.
+
+For backup and disaster recovery, **Velero** is deployed on Amazon EKS to perform automated backups of Kubernetes resources and persistent volumes, storing them securely in an **AWS S3 bucket**.
 
 ---
 
@@ -45,6 +47,10 @@ For observability, the system integrates **Prometheus** and **Grafana** to monit
 
 * Argo Rollouts (Canary Deployment)
 
+### 📦 Scalling
+
+* Vertical Pod Autoscaler (VPA)
+
 ### 🔄 CI/CD & GitOps
 
 * Jenkins (CI/CD Automation)
@@ -60,15 +66,37 @@ For observability, the system integrates **Prometheus** and **Grafana** to monit
 * Prometheus (Metrics collection)
 * Grafana (Visualization dashboards)
 
+### ☸️ Backup & Disaster Recovery (Velero)
+
+* EKS Cluster Backup
+* Namespace Wise Backup 
+
 ### 💻 Application Stack
 
 * PostgreSQL
 * Express.js
 * React.js
 * Node.js
+
+---
+<p align="center">
+  <img src="images/architecture2.png" width="700"/>
+</p>
+
+---
+## Pipeline Architecture
+
+<p align="center">
+  <img src="images/architecture.gif" width="700"/>
+</p>
+
+---
+### 🛠️[application code & jenkins pipeline repo](https://github.com/Akashkayande/app-code-jenkins.git)
+
 ---
 
 ## 🔹 Step-by-Step Implementation Of Project
+
 ---
 
 ## 🛠️ Step 1: Setup Terraform & AWS
@@ -190,13 +218,14 @@ We provision an EC2 instance to act as a central machine for building, scanning,
 
 * First, connect to your AWS EC2 instance using SSH
 
-### 🛠️ Install & Configure Required Tools
+## 🛠️ Install & Configure Required Tools
 
-* After connecting to the EC2 instance, install the following essential tools for your DevSecOps pipeline:
+- After connecting to the EC2 instance, install the following essential tools for your DevSecOps pipeline:
 
-* **AWS CLI**
-  Used to interact with AWS services and configured with appropriate credentials for secure access.
-### 🔹 Configure AWS CLI
+### **Install AWS CLI**
+- Used to interact with AWS services and configured with appropriate credentials for secure access.
+
+#### 🔹 Configure AWS CLI
 
 ```bash
 aws configure
@@ -205,8 +234,8 @@ aws configure
 * Secret Key
 * Region
 
-* **Docker**
-  Enables building and managing container images for the application.
+### **Install Docker**
+- Enables building and managing container images for the application.
 
 ### 🔹 Install Docker Engine
 
@@ -217,14 +246,14 @@ sudo systemctl start docker
 sudo systemctl enable docker
 ```
 
-* **Trivy**
-  Used for vulnerability scanning of Docker images to ensure security compliance.
+### **Install Trivy**
+- Used for vulnerability scanning of Docker images to ensure security compliance.
 
-* **Git**
-  Helps in cloning repositories and managing source code versions.
+### **Install Git**
+-  Helps in cloning repositories and managing source code versions.
 
-* **Kubectl**
-  Configured to connect with the EKS cluster for deploying and managing Kubernetes resources.
+### **Install  Kubectl**
+-  Configured to connect with the EKS cluster for deploying and managing Kubernetes resources.
 
 ### 🔹 Update kubeconfig
 * connect with the EKS cluster
@@ -235,10 +264,11 @@ aws eks update-kubeconfig \
 --name pern-eks
 ```
 
-* **Helm**
-  Used as a package manager for Kubernetes and for creating reusable deployment templates (Helm charts).
+### **Install Helm**
+-  Used as a package manager for Kubernetes and for creating reusable deployment templates (Helm charts).
 
 ---
+
 ## 🐳 Build & Push Docker Images to AWS ECR
 
 In this step, we containerize both the frontend and backend applications and push the images to Amazon ECR (Elastic Container Registry).
@@ -291,6 +321,48 @@ docker push <ECR_REGISTRY>/frontend:latest
 - These images are ready to be deployed on Kubernetes (EKS).
 
 ---
+
+## PostgreSQL Database Architecture
+
+### Overview
+
+The application uses PostgreSQL deployed inside the EKS cluster as a StatefulSet. Database storage is backed by AWS EBS volumes to ensure data persistence even if the PostgreSQL pod is restarted or rescheduled.
+
+#### Components
+
+* **StatefulSet**: Manages the PostgreSQL container and provides stable pod identity.
+* **Headless Service**: Enables stable DNS-based communication within the cluster.
+* **Persistent Volume Claim (PVC)**: Dynamically provisions AWS EBS storage.
+* **Backend Service**: Connects to PostgreSQL through the Kubernetes Service DNS.
+
+#### Connection Flow
+
+```text
+Backend Pod
+    │
+    ▼
+postgres Service
+    │
+    ▼
+PostgreSQL StatefulSet
+    │
+    ▼
+AWS EBS Volume
+```
+
+Backend applications connect using the internal Kubernetes DNS name:
+
+```text
+Host: postgres
+Port: 5432
+Database: mern
+```
+
+#### Persistence
+
+Application data is stored on an AWS EBS volume attached through a Persistent Volume Claim. Data remains intact even if the PostgreSQL pod is recreated.
+
+
 ## 🚀 PERN App Deployment on AWS EKS using Helm
 
 
@@ -347,6 +419,7 @@ Inside the `templates/` folder, define all required Kubernetes resources:
 
 * 🟢 Frontend Rollouts & Service
 * 🔵 Backend Rollouts & Service
+* 🔵 Database Postgres
 * 🟣 Secrets
 * 🌐 Ingress (for external access)
 
@@ -618,7 +691,7 @@ By default, Kubernetes services are **not accessible outside the cluster**:
 We solve this using:
 
 * **Kubernetes Ingress** → Defines routing rules
-* **Nginx Ingress Controller** → Creates and manages Load Balancer
+* **ALB Ingress Controller** → Creates and manages Load Balancer
 
 👉 Result:
 
@@ -685,14 +758,16 @@ kubectl apply -f ingress.yaml
 ```
 
 ---
-### 5. Install Nginx Controller using Helm
+### 5. Install ALB Controller using Helm
 
 ```bash id="u2n4wz"
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-helm repo update
-
-helm install ingress-nginx ingress-nginx/ingress-nginx \
-  --namespace pern-prod
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n pern-prod \
+  --set clusterName=<cluster-name> \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller \
+  --set region=<aws-region> \
+  --set vpcId=<vpc-id>
 ```
 ---
 
@@ -701,12 +776,9 @@ helm install ingress-nginx ingress-nginx/ingress-nginx \
 ```bash id="2r6b1x"
 kubectl get ingress -n pern-prod
 ```
-* We Use The Dummy Host for testing:
-* Edit /etc/hosts:
-*  Add:
-    <EXTERNAL-IP> pern.example.com
-
-* <EXTERNAL-IP> =>ALB DNS IP
+<p align="center">
+  <img src="images/ingress.png" width="600"/>
+</p>
 ---
 <p align="center">
   <img src="images/application.png" width="600"/>

@@ -4,6 +4,10 @@ backend:
   name: backend-rollout
   replicaCount: 2
 
+  env:
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    DB_NAME: pern
 
   image:
     repository: 407622020962.dkr.ecr.us-east-1.amazonaws.com/backend
@@ -23,9 +27,19 @@ backend:
     port: 5000 
     targetPort: 3000
 
+  vpa:
+    enabled: true
+
+    updateMode: Off
+
+    minCpu: 200m
+    minMemory: 256Mi
+
+    maxCpu: 2
+    maxMemory: 2Gi
+
   secrets:
     PORT: "MzAwMA=="
-    DATABASE_URL: "cG9zdGdyZXNxbDovL25lb25kYl9vd25lcjpucGdfVWpGbWVQNkNYcU4zQGVwLXN3ZWV0LXJpY2UtYTh4YjNsOTYtcG9vbGVyLmVhc3R1czIuYXp1cmUubmVvbi50ZWNoL25lb25kYj9zc2xtb2RlPXJlcXVpcmUmY2hhbm5lbF9iaW5kaW5nPXJlcXVpcmU="
     CLERK_PUBLISHABLE_KEY: "cGtfdGVzdF9kSEoxYzNScGJtY3RhbUY1WW1seVpDMDJOQzVqYkdWeWF5NWhZMk52ZFc1MGN5NWtaWFlr"
     CLERK_SECRET_KEY: "c2tfdGVzdF8wYkZtZUtWSDdMWEhVOTVvUlc5ZjM1SG9mVmR3WExLenpaVFhQTWFQRXg="
     GEMINI_API_KEY: "QUl6YVN5QzFHWVoxUTJEZlJBWDBsOGdvX3d0djc1STBLdW5SYmdB"
@@ -34,7 +48,41 @@ backend:
     CLOUDINARY_API_KEY: "NTI4OTM5NzgxNzgxMjEx"
     CLOUDINARY_API_SECRET: "eHgxSmsxSlhPSkVGUC02WlBkZG9OYi11VktF"
 
+postgres:
+  name: postgres
+
+  image:
+    repository: postgres
+    tag: "16"
+
+  replicas: 1
+
+  database:
+    name: cGVybg==
+
+  user: YWRtaW4=
+  password: MTIzNDU2Nw==
+
+
+  service:
+    port: 5432
+
+  storage:
+    size: 20Gi
+    storageClass: gp3
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+
 frontend:
+
   name: frontend-rollout
   replicaCount: 2
 
@@ -54,13 +102,24 @@ frontend:
         cpu: "250m"
         memory: "256Mi"
 
+  vpa:
+    enabled: true
+
+    updateMode: Off
+
+    minCpu: 50m
+    minMemory: 64Mi
+
+    maxCpu: 1
+    maxMemory: 1Gi
+    
   service:
     type: ClusterIP
     port: 80
 
 ingress:
   enabled: true
-  className: nginx
+  className: alb
   host: pern.example.com
   paths:
     frontend: /
